@@ -10,7 +10,7 @@ const server = http.createServer(app); // Create a server with Expre
 
 const io = socketIo(server, {
   cors: {
-    origin: "http://localhost:3000",
+    origin: "https://closecallfrontend.vercel.app",
     methods: ["GET", "POST"],
     allowedHeaders: ["Content-Type", "Authorization"],
   },
@@ -22,7 +22,7 @@ const db = require("./models");
 
 app.use(
   cors({
-    origin: "http://localhost:3000", // Allow requests from localhost:3000
+    origin: "https://closecallfrontend.vercel.app",
     methods: ["GET", "POST", "PUT", "DELETE"],
     allowedHeaders: ["Content-Type", "Authorization"],
   })
