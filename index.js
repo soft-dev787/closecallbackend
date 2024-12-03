@@ -14,6 +14,7 @@ const io = socketIo(server, {
     methods: ["GET", "POST"],
     allowedHeaders: ["Content-Type", "Authorization"],
   },
+  secure: true, // Force secure connections
 });
 
 const port = process.env.PORT || 3000;
