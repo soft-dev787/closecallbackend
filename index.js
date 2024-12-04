@@ -11,7 +11,8 @@ const server = http.createServer(app); // Create a server with Expre
 const io = socketIo(server, {
   cors: {
     origin: "*", // Accepts requests from any origin
-    methods: ["GET", "POST"],
+    methods: ["GET", "POST", "PUT", "DELETE"],
+
     allowedHeaders: ["Content-Type", "Authorization"],
   },
 });
@@ -62,10 +63,25 @@ app.post("/webhook", async (req, res) => {
     return res.status(200).send("ok");
   }
 
+  // Temporary
+  // if (singleEvent.data.user.email != "jawadah303@gmail.com") {
+  //   return res.status(200).send("ok");
+  // }
+  // Temporary
+
+  const randomVal = Math.floor(Math.random() * 999);
+  console.log(`eventtt startttt ${randomVal} `);
+  console.log(singleEvent);
+  console.log(`eventtt enddddd ${randomVal + 100} `);
+
+  console.log("executingggggggg");
+
   if (
     // singleEvent.event == "call.created" ||
     singleEvent.event == "call.answered" ||
-    singleEvent.event == "call.hungup"
+    singleEvent.event == "call.hungup" ||
+    singleEvent.event == "call.transferred" ||
+    singleEvent.event == "call.unsuccessful_transfer"
   ) {
     const userExist = await db.Email.findOne({
       where: {

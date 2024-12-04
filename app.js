@@ -2,12 +2,28 @@ const express = require("express");
 const { AssemblyAI } = require("assemblyai");
 const axios = require("axios");
 const db = require("./models");
-
 const Email = db.Email;
 const app = express();
 const aaiClient = new AssemblyAI({ apiKey: process.env.ASSEMBLYAI_API_KEY });
-
+const { OpenAI } = require("openai");
+const twilio = require("twilio");
 app.use(express.json());
+
+const openai = new OpenAI({
+  apiKey: process.env.CHAT_GPT_KEY,
+});
+
+const accountSid = process.env.TWILIO_ACCOUNT_SID;
+const authToken = process.env.TWILIO_AUTH_TOKEN;
+const client = twilio(accountSid, authToken);
+
+async function createMessage(summary, fromNumber, toNumber) {
+  const message = await client.messages.create({
+    body: summary,
+    from: fromNumber,
+    to: toNumber,
+  });
+}
 
 const aircallAuth = {
   username: process.env.AIRCALL_API_ID,
@@ -21,11 +37,58 @@ const axiosInstance = axios.create({
 
 app.get("/", (req, res) => res.send("Welcome"));
 
+app.post("/summarize", async (req, res) => {
+  const { transcript, fromNumber, toNumber } = req.body;
+
+  if (!transcript || transcript.length === 0) {
+    return res.status(400).json({ error: "Transcript is required." });
+  }
+
+  try {
+    const prompt = `
+    You are a helpful assistant. Below is a conversation between a customer and a salesperson in a retail setting. 
+    Your task is to summarize the conversation and provide the key points in bullet list format:
+
+    Conversation:
+    ${transcript}
+
+    Key points:
+  `;
+
+    const response = await openai.chat.completions.create({
+      model: "gpt-4",
+      messages: [
+        {
+          role: "system",
+          content:
+            "You are a helpful assistant that summarizes conversations and return the key points as bullet lists",
+        },
+        { role: "user", content: prompt },
+      ],
+    });
+
+    const summary = response.choices[0].message.content.trim();
+    // const summary =
+    //   "- The customer is looking for a new laptop, and has certain specifications in mind:\n  - The laptop needs to be fast enough for work, and capable of handling light gaming.\n  - Battery life is important because the customer travels frequently.\n- The customer's preferred brands are Dell and Lenovo, with a budget under $1,500.\n- The salesperson recommended the Dell XPS 13 and Lenovo Legion 5, stating that both models have strong processors, good graphics, and long battery life.\n- The customer expressed interest in the Dell XPS 13, prioritizing display quality and keyboard comfort for presentations, media consumption, and extensive typing.\n- The salesperson reassured the customer that the XPS 13 has a high-quality display, a comfortable keyboard, and about 12 hours of battery life under normal use.\n- The customer decided to opt for the Dell XPS 13 and wanted to check it out in person. The salesperson agreed to fetch the laptop for the customer to inspect.";
+
+    await createMessage(summary, fromNumber, toNumber);
+
+    res.json({ summary: summary });
+  } catch (error) {
+    console.error("Error summarizing transcript:", error);
+    res.status(500).json({ error: "Failed to summarize the transcript." });
+  }
+});
+
 app.get("/token", async (req, res) => {
   try {
+    console.log("stringgg");
+
     const token = await aaiClient.realtime.createTemporaryToken({
       expires_in: 3600,
     });
+    console.log(token);
+
     res.json({ token });
   } catch (error) {
     res.status(500).json({ error: error.message });
