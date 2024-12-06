@@ -8,14 +8,15 @@ const aaiClient = new AssemblyAI({ apiKey: process.env.ASSEMBLYAI_API_KEY });
 const { OpenAI } = require("openai");
 const twilio = require("twilio");
 app.use(express.json());
-
+const bcrypt = require("bcrypt");
 const openai = new OpenAI({
   apiKey: process.env.CHAT_GPT_KEY,
 });
-
+const User = db.User;
 const accountSid = process.env.TWILIO_ACCOUNT_SID;
 const authToken = process.env.TWILIO_AUTH_TOKEN;
 const client = twilio(accountSid, authToken);
+const jwt = require("jsonwebtoken");
 
 async function createMessage(summary, fromNumber, toNumber) {
   const message = await client.messages.create({
@@ -135,6 +136,81 @@ app.post("/finduser", async (req, res) => {
 
 app.get("/health", async (req, res) => {
   res.json({ test: "test" });
+});
+
+app.post("/register", async (request, response) => {
+  bcrypt
+    .hash(request.body.password, 10)
+    .then(async (hashedPassword) => {
+      try {
+        const user = await User.create({
+          email: request.body.email,
+          password: hashedPassword,
+        });
+
+        response.status(201).send({
+          message: "User Created Successfully",
+          id: user.id,
+        });
+      } catch (error) {
+        response.status(500).send({
+          message: error.message || "Error creating user",
+        });
+      }
+    })
+    .catch((e) => {
+      console.log(e);
+
+      response.status(500).send({
+        message: "Password was not hashed successfully",
+        e,
+      });
+    });
+});
+
+app.post("/login", async (request, response) => {
+  try {
+    const user = await User.findOne({
+      where: {
+        email: request.body.email,
+      },
+    });
+
+    bcrypt
+      .compare(request.body.password, user.password)
+
+      .then((passwordCheck) => {
+        if (!passwordCheck) {
+          return response.status(400).send({
+            message: "Passwords does not match",
+            error,
+          });
+        }
+        const token = jwt.sign(
+          {
+            userId: user._id,
+            userEmail: user.email,
+          },
+          process.env.JWT_KEY,
+          { expiresIn: "7d" }
+        );
+
+        response.status(200).send({
+          token,
+          id: user.id,
+        });
+      })
+      .catch((error) => {
+        response.status(400).send({
+          message: "Passwords does not match",
+          error,
+        });
+      });
+  } catch (error) {
+    response.status(404).send({
+      message: "Email not found",
+    });
+  }
 });
 
 module.exports = app;

@@ -13,5 +13,6 @@ db.Sequelize = Sequelize;
 db.sequelize = sequelize;
 
 db.Email = require("./Email.js")(sequelize, Sequelize);
+db.User = require("./User.js")(sequelize, Sequelize);
 
 module.exports = db;
